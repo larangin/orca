@@ -267,7 +267,8 @@ export function buildDefaultSettings(args: {
     experimentalNewWorktreeCardStyle: false,
     experimentalEphemeralVms: false,
     experimentalConnectors: false,
-    experimentalMultiWindow: false,
+    // Preview branch only: on so testers get File > New Window without a hidden setting.
+    experimentalMultiWindow: true,
     experimentalWslHosts: false,
     compactWorktreeCards: false,
     // Why: local desktop stays the default until the user picks a saved runtime environment.

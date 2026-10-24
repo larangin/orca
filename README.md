@@ -1,3 +1,24 @@
+> [!WARNING]
+> **Unofficial multi-window preview of Orca.** This branch adds `File > New Window`, so you can put different projects on different monitors or Spaces. It is a prototype for [stablyai/orca#6074](https://github.com/stablyai/orca/issues/6074), not an Orca release. For the official app, use [onorca.dev](https://onorca.dev/download).
+>
+> **Try it** (macOS, Linux or Windows; Node 24, pnpm and Bun as in [CONTRIBUTING](.github/CONTRIBUTING.md)):
+>
+> ```bash
+> git clone -b feat/multi-window-preview https://github.com/Robert-Crivat/orca.git orca-multiwindow
+> cd orca-multiwindow && pnpm install && pnpm dev
+> ```
+>
+> `pnpm dev` uses its own profile (`orca-dev`), separate from an installed Orca. Then use **File > New Window**: the new window opens empty, pick a workspace in its sidebar.
+>
+> **Known limits of this preview**
+>
+> - Open each workspace in one window only: the same workspace in two windows shares one terminal.
+> - The new window does not save its tabs yet; only the first window is restored after a restart.
+> - Agents running in the new window are not visible to Orca Mobile or the `orca` CLI yet.
+> - Skills do not load in the new window.
+>
+> Found a bug? Open an issue on [this fork](https://github.com/Robert-Crivat/orca/issues) with your OS and the steps.
+
 <h1 align="center">
   <a href="https://onOrca.dev"><img src="resources/build/icon.png" alt="Orca" width="64" valign="middle" /></a> Orca
 </h1>
