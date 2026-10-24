@@ -1,5 +1,7 @@
 import { isTerminalInputPaused } from '../../../runtime/terminal-input-admission'
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron'
+import { unwrapRoutedPtyWebContents } from '../delivery/pty-owner-routing'
+import { isMainWindowWebContents } from '../../../window/main-window-registry'
 import type { PtyRendererDelivery } from '../session'
 import type { OrcaRuntimeService } from '../../../runtime/orca-runtime'
 import type { IPtyProvider } from '../../../providers/pty-provider-contract'
@@ -19,7 +21,12 @@ export function isMainWindowPtyIpcEvent(
   event: IpcMainEvent | IpcMainInvokeEvent,
   mainWindow: PtyRendererDelivery | undefined
 ): boolean {
-  const mainWebContents = mainWindow?.webContents
+  const mainWebContents = mainWindow
+    ? unwrapRoutedPtyWebContents(mainWindow.webContents)
+    : undefined
+  if (mainWindow && isMainWindowWebContents(event.sender)) {
+    return true
+  }
   return (
     !!mainWindow &&
     !!mainWebContents &&

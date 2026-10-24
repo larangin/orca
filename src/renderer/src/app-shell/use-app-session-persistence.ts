@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isSecondaryWindow } from '../lib/window-role'
 import { useAppStore } from '../store'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../shared/layout-owner-switch'
 import { createSessionWriteSubscriber } from '../lib/session-write-subscriber'
@@ -45,6 +46,10 @@ export function useAppSessionPersistence(): void {
 
   // Subscribe outside React: disk persistence needs no renders on tab/file/browser changes.
   useEffect(() => {
+    // Why: the primary window owns the session; a secondary window must not overwrite it.
+    if (isSecondaryWindow) {
+      return
+    }
     return createSessionWriteSubscriber({
       store: useAppStore,
       onPersistError: (error) => console.warn('[session] Session patch failed:', error),
@@ -58,6 +63,10 @@ export function useAppSessionPersistence(): void {
 
   // Capture renderer-owned state into one synchronous shutdown checkpoint.
   useEffect(() => {
+    // Why: the primary window owns the session; a secondary window must not overwrite it.
+    if (isSecondaryWindow) {
+      return
+    }
     // Quit can trigger synthetic and native beforeunload. Preserve the first capture before PTY exits unmount panes and empty their buffers.
     const shutdownCheckpointPersist = createShutdownCheckpointPersist({
       shouldCaptureSession: () => shouldPersistWorkspaceSession(useAppStore.getState()),
@@ -129,6 +138,10 @@ export function useAppSessionPersistence(): void {
 
   // Hard kills skip beforeunload; periodically retain agent resume IDs, without expensive scrollback capture.
   useEffect(() => {
+    // Why: the primary window owns the session; a secondary window must not overwrite it.
+    if (isSecondaryWindow) {
+      return
+    }
     const timer = window.setInterval(() => {
       if (!shouldPersistWorkspaceSession(useAppStore.getState())) {
         return

@@ -10,6 +10,7 @@ import { translateMain } from '../i18n/main-i18n'
 import { createAppMenuSelectionItem, resolveNativeEditTarget } from './app-menu-selection-item'
 import { createAppMenuQuitItems, type AppMenuQuitHandlers } from './app-menu-quit-item'
 import { createAppMenuReloadAndDevToolsItems } from './app-menu-reload-devtools-items'
+import { createAppFileMenu } from './app-menu-file'
 import { createAppWindowMenu } from './app-menu-window'
 
 export type AppearanceMenuState = {
@@ -44,6 +45,7 @@ type RegisterAppMenuOptions = AppMenuQuitHandlers & {
   toggleFocusedPageDevTools?: (focused: Electron.WebContents) => boolean
   // app.name stays stable for Keychain; menus use the per-branch development label.
   appMenuLabel?: string
+  onNewWindow?: () => void
 }
 
 function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
@@ -143,10 +145,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
     ]
   }
 
-  const fileMenu: Electron.MenuItemConstructorOptions = {
-    label: translateMain('menu.file', 'File'),
-    submenu: [settingsItem, { type: 'separator' }, ...createAppMenuQuitItems(options)]
-  }
+  const fileMenu = createAppFileMenu({ isMac, settingsItem, ...options })
 
   // Keep menu hints while non-macOS Ctrl+Z/Ctrl+Y reach focused terminal or DOM controls.
   const undoRedoOptions: Electron.MenuItemConstructorOptions = isMac
@@ -295,7 +294,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
 
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac ? [macAppMenu] : []),
-    ...(isMac ? [] : [fileMenu]),
+    ...(isMac && !options.onNewWindow ? [] : [fileMenu]),
     editMenu,
     viewMenu,
     windowMenu,

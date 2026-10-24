@@ -7,6 +7,7 @@ import { formatBrowserClientHostIdArgument } from '../../shared/browser-client-h
 import { markSystemSessionEnding } from '../crash-reporting/expected-teardown-state'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 import { clearTrustedUIRendererWebContentsId, setTrustedUIRendererWebContentsId } from '../ipc/ui'
+import { registerMainWindow } from './main-window-registry'
 import { flushUnsavedCloudSessions } from '../orca-profiles/profile-cloud-session-owner'
 import type { Store } from '../persistence'
 import { closeDashboardPopout } from './dashboard-popout-window'
@@ -227,6 +228,7 @@ export function createMainWindow(
     clearTrustedUIRendererWebContentsId(rendererWebContentsId)
     state.dispose()
   })
+  registerMainWindow(mainWindow)
 
   if (!opts?.deferLoad) {
     loadMainWindow(mainWindow)

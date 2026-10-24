@@ -1,4 +1,5 @@
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron'
+import { withPtyOwnerTracking } from './pty/delivery/pty-owner-routing'
 
 /** Inject desktop surfaces so the same PTY controller can also serve Node-only hosts. */
 
@@ -33,7 +34,8 @@ export function setPtyHostBindings(bindings: {
   ipc?: PtyIpcSurface
   power?: PtyPowerSurface
 }): void {
-  currentIpc = bindings.ipc ?? noopPtyIpcSurface
+  // Why wrapped here: every PTY channel registers through this surface, so ownership is tracked once.
+  currentIpc = bindings.ipc ? withPtyOwnerTracking(bindings.ipc) : noopPtyIpcSurface
   currentPower = bindings.power ?? noopPtyPowerSurface
 }
 

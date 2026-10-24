@@ -1,4 +1,6 @@
 import { ipcMain } from 'electron'
+import { isSecondaryMainWindowWebContents } from '../window/main-window-registry'
+import { secondaryWindowStartSession } from '../window/secondary-main-window'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { parseTerminalSurfaceCloseTarget } from '../../shared/terminal-surface-close-target'
@@ -22,8 +24,12 @@ export function registerSessionHandlers(store: Store, runtime: OrcaRuntimeServic
     isFrozenOrcadSourceSessionPartition(store, hostId) || isWslMoveWindowWriteHeld()
 
   // Optional hostId preserves local-partition behavior for older renderers.
-  ipcMain.handle('session:get', (_event, hostId?: string | null) => {
-    return store.getWorkspaceSession(hostId)
+  ipcMain.handle('session:get', (event, hostId?: string | null) => {
+    const session = store.getWorkspaceSession(hostId)
+    // Why: a window from File > New Window opens what you pick; the primary keeps its terminals.
+    return isSecondaryMainWindowWebContents(event.sender)
+      ? secondaryWindowStartSession(session)
+      : session
   })
 
   // Repo catalogs omit folder-only SSH hosts; enumerate session partitions directly (#12723).

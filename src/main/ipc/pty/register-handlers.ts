@@ -1,4 +1,5 @@
 import { settledDaemonRestart } from '../../daemon/daemon-restart-state'
+import { routePtyDeliveryByOwner } from './delivery/pty-owner-routing'
 import { getAppEnvironment } from '../../../shared/app-environment'
 import type { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import type { Store } from '../../persistence'
@@ -70,7 +71,7 @@ import { ensureLinuxTerminalOrcaCliShimDir } from '../../cli/linux-terminal-orca
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 
 export function registerPtyHandlers(
-  mainWindow?: PtyRendererDelivery,
+  primaryWindow?: PtyRendererDelivery,
   runtime?: OrcaRuntimeService,
   getSelectedCodexHomePath?: GetSelectedCodexHomePath,
   getSettings?: () => GlobalSettings,
@@ -84,6 +85,7 @@ export function registerPtyHandlers(
       ensureLinuxTerminalOrcaCliShimDir({ userDataPath: appEnvironment.getPath('userData') })
     }
   }
+  const mainWindow = primaryWindow ? routePtyDeliveryByOwner(primaryWindow) : undefined
   const ipcMain = getPtyIpc()
   // Reset the outgoing session before neutralizing its bridge, or producer pauses lose their release path.
   resetRendererDeliveryAccountingForLifecycleReset()

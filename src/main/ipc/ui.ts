@@ -11,6 +11,7 @@ import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import { isFeatureInteractionId } from '../../shared/feature-interactions'
 import { isWslMoveWindowWriteHeld } from '../persistence/moving-wsl-projects/wsl-move-window-write-hold'
 import { isTrustedMainRendererSender } from './main-renderer-sender-trust'
+import { isMainWindowWebContents } from '../window/main-window-registry'
 
 let trustedUIRendererWebContentsId: number | null = null
 
@@ -126,5 +127,8 @@ export function registerUIHandlers(
 }
 
 export function isTrustedUIRenderer(sender: WebContents): boolean {
+  if (!sender.isDestroyed() && sender.getType() === 'window' && isMainWindowWebContents(sender)) {
+    return true
+  }
   return isTrustedMainRendererSender(sender, trustedUIRendererWebContentsId)
 }

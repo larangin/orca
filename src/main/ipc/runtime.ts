@@ -1,4 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron'
+import { isSecondaryMainWindowWebContents } from '../window/main-window-registry'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import type {
   RuntimeBrowserDriverState,
@@ -48,6 +49,11 @@ export function registerRuntimeHandlers(runtime: OrcaRuntimeService): void {
       }
       if (typeof graph.rendererGeneration !== 'string' || graph.rendererGeneration.length === 0) {
         throw new Error('Runtime graph sync requires a renderer generation')
+      }
+      // ponytail: a secondary window's graph is not published yet, so paired clients see only the
+      // primary window's terminals; per-window publications when the runtime takes more than one.
+      if (isSecondaryMainWindowWebContents(event.sender)) {
+        return runtime.getStatus()
       }
       const result = runtime.syncWindowGraph(window.id, graph)
       // Only the authoritative window's accepted graph may publish its project catalog.

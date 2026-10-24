@@ -20,6 +20,7 @@ import {
 import { ensureAutoUpdaterConfigured } from '../window/attach-main-window-services'
 import { logStartupMilestone } from './startup-diagnostics'
 import { browserManager } from '../browser/browser-manager'
+import { createSecondaryMainWindow } from '../window/secondary-main-window'
 
 export async function initializeMainProcessI18nAndMenu(): Promise<void> {
   const store = state.store
@@ -31,6 +32,10 @@ export async function initializeMainProcessI18nAndMenu(): Promise<void> {
   registerAppMenu({
     appMenuLabel: state.devInstanceIdentity?.name ?? app.name,
     ...getAppMenuQuitHandlers(),
+    // Why read once: window ownership is decided per launch; toggling needs a restart.
+    ...(store.getSettings().experimentalMultiWindow === true && !state.isServeMode
+      ? { onNewWindow: () => void createSecondaryMainWindow() }
+      : {}),
     onCheckForUpdates: (options) => {
       ensureAutoUpdaterConfigured()
       runUserInitiatedUpdateCheck(options)
