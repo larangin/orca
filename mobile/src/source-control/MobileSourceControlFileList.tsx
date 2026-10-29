@@ -33,6 +33,7 @@ export type FileListState = Pick<
   | 'openingBranchPath'
   | 'openFile'
   | 'openBranchDiff'
+  | 'resolveConflict'
   | 'runGitAction'
   | 'setDiscardTarget'
 >

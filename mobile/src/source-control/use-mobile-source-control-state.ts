@@ -293,6 +293,7 @@ export function useMobileSourceControlState(params: MobileSourceControlStatePara
     unstageablePaths,
     stagedCount,
     unstagedCount,
+    hasUnresolvedConflicts,
     branchLabel,
     upstreamKnown,
     syncLabel,

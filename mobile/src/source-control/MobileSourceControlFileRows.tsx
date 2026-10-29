@@ -12,6 +12,7 @@ import {
 } from './mobile-source-control-screen-state'
 import type { MobileSourceControlState } from './use-mobile-source-control-state'
 import { styles } from './mobile-source-control-styles'
+import { MOBILE_CONFLICT_RESOLUTION_LABELS } from './mobile-source-control-conflict-actions'
 
 type RowState = Pick<
   MobileSourceControlState,
@@ -19,18 +20,27 @@ type RowState = Pick<
   | 'openingPath'
   | 'openingBranchPath'
   | 'openFile'
+  | 'resolveConflict'
   | 'runGitAction'
   | 'setDiscardTarget'
 >
 
 export function makeRenderFileRow(state: RowState) {
-  const { busyAction, openingPath, openingBranchPath, openFile, runGitAction, setDiscardTarget } =
-    state
+  const {
+    busyAction,
+    openingPath,
+    openingBranchPath,
+    openFile,
+    resolveConflict,
+    runGitAction,
+    setDiscardTarget
+  } = state
   return function FileRow({ item }: { item: MobileGitStatusEntryView }) {
     const rowBusy =
       busyAction === item.stageActionId ||
       busyAction === item.unstageActionId ||
       busyAction === item.discardActionId ||
+      busyAction === item.resolveActionId ||
       openingPath === item.path
     const rowDisabled =
       !item.canOpen || busyAction !== null || openingPath !== null || openingBranchPath !== null
@@ -72,6 +82,28 @@ export function makeRenderFileRow(state: RowState) {
             <Text style={styles.fileMeta} numberOfLines={1}>
               {item.conflictKind ? CONFLICT_KIND_LABELS[item.conflictKind] : 'Unresolved conflict'}
             </Text>
+          ) : null}
+          {!rowBusy && item.conflictResolutions.length > 0 ? (
+            <View style={styles.conflictActions}>
+              {item.conflictResolutions.map((resolution) => (
+                <Pressable
+                  key={resolution}
+                  style={({ pressed }) => [
+                    styles.conflictActionButton,
+                    ioBusy && styles.iconButtonDisabled,
+                    pressed && styles.iconButtonPressed
+                  ]}
+                  disabled={ioBusy}
+                  onPress={() => void resolveConflict(item, resolution)}
+                  hitSlop={4}
+                  accessibilityLabel={`${MOBILE_CONFLICT_RESOLUTION_LABELS[resolution]}: ${item.path}`}
+                >
+                  <Text style={styles.conflictActionText}>
+                    {MOBILE_CONFLICT_RESOLUTION_LABELS[resolution]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
           ) : null}
         </View>
         {rowBusy ? (

@@ -17,6 +17,9 @@ type Props = {
   conflictBusy: boolean
   conflictAborting: boolean
   onAbortConflict: (operation: string) => void
+  /** Set once a paused merge has no unresolved conflicts left. */
+  onCompleteMerge: (() => void) | null
+  completingMerge: boolean
   prChip: MobilePrChipSummary | null
   onOpenPr: () => void
 }
@@ -31,6 +34,8 @@ export function MobileSourceControlBranchCard({
   conflictBusy,
   conflictAborting,
   onAbortConflict,
+  onCompleteMerge,
+  completingMerge,
   prChip,
   onOpenPr
 }: Props) {
@@ -56,6 +61,21 @@ export function MobileSourceControlBranchCard({
       {showConflict ? (
         <View style={styles.conflictRow}>
           <Text style={styles.conflictText}>{conflictOperation}</Text>
+          {onCompleteMerge ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.completeMergeButton,
+                conflictBusy && styles.abortButtonDisabled,
+                pressed && !conflictBusy && styles.abortPressed
+              ]}
+              disabled={conflictBusy}
+              onPress={onCompleteMerge}
+            >
+              <Text style={styles.completeMergeText}>
+                {completingMerge ? 'Completing…' : 'Complete merge'}
+              </Text>
+            </Pressable>
+          ) : null}
           {conflictOperation === 'merge' || conflictOperation === 'rebase' ? (
             <Pressable
               style={({ pressed }) => [
