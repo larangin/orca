@@ -1,4 +1,4 @@
-import { ipcMain, Menu, Notification, type BrowserWindow } from 'electron'
+import { BrowserWindow, ipcMain, Menu, Notification } from 'electron'
 import { QUIT_RENDERER_ACK_TIMEOUT_MS } from '../../shared/quit-teardown-deadline'
 import { translateMain } from '../i18n/main-i18n'
 import type { Store } from '../persistence'
@@ -8,6 +8,12 @@ import type { MainWindowFocusLifecycle } from './main-window-focus-lifecycle'
 import type { MainWindowStateLifecycle } from './main-window-state-lifecycle'
 import { syncTrafficLightPosition } from './main-window-visual-lifecycle'
 import { consumeUserQuitWindowClose } from './user-quit-window-close'
+import { isSecondaryMainWindowWebContents } from './main-window-registry'
+
+// Secondary windows handle their own titlebar controls (secondary-main-window.ts).
+function fromSecondaryWindow(event?: { sender?: Electron.WebContents }): boolean {
+  return !!event?.sender && isSecondaryMainWindowWebContents(event.sender)
+}
 
 export const WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS = QUIT_RENDERER_ACK_TIMEOUT_MS
 
@@ -133,7 +139,10 @@ export function installMainWindowCloseLifecycle(args: {
     mainWindow.webContents.send('window:unload-prevented')
   })
 
-  const onConfirmClose = (): void => {
+  const onConfirmClose = (event?: Electron.IpcMainEvent): void => {
+    if (fromSecondaryWindow(event)) {
+      return
+    }
     clearQuitRendererAckTimer()
     windowCloseConfirmed = true
     if (!mainWindow.isDestroyed()) {
@@ -148,14 +157,14 @@ export function installMainWindowCloseLifecycle(args: {
 
   // Custom Windows/Linux controls replace hidden native titlebar buttons.
   const minimizeChannel = 'window:minimize'
-  const onMinimize = (): void => {
-    if (!mainWindow.isDestroyed()) {
+  const onMinimize = (event?: Electron.IpcMainEvent): void => {
+    if (!fromSecondaryWindow(event) && !mainWindow.isDestroyed()) {
       mainWindow.minimize()
     }
   }
   const maximizeChannel = 'window:maximize'
-  const onMaximize = (): void => {
-    if (mainWindow.isDestroyed()) {
+  const onMaximize = (event?: Electron.IpcMainEvent): void => {
+    if (fromSecondaryWindow(event) || mainWindow.isDestroyed()) {
       return
     }
     if (mainWindow.isMaximized()) {
@@ -166,8 +175,8 @@ export function installMainWindowCloseLifecycle(args: {
   }
   // Windows close from IPC can misfire; send the renderer close request directly.
   const requestCloseChannel = 'window:request-close'
-  const onRequestClose = (): void => {
-    if (mainWindow.isDestroyed()) {
+  const onRequestClose = (event?: Electron.IpcMainEvent): void => {
+    if (fromSecondaryWindow(event) || mainWindow.isDestroyed()) {
       return
     }
     // Custom X bypasses native close; apply the tray guard here too.
@@ -178,13 +187,19 @@ export function installMainWindowCloseLifecycle(args: {
   }
   // Custom titlebar menu replaces Alt reveal of the hidden Windows/Linux menu.
   const popupMenuChannel = 'menu:popup'
-  const onPopupMenu = (): void => {
+  const onPopupMenu = (event?: Electron.IpcMainEvent): void => {
+    if (fromSecondaryWindow(event)) {
+      return
+    }
     Menu.getApplicationMenu()?.popup({ window: mainWindow })
   }
   // Controls mount after the first maximize event; expose current state for their initial icon.
   const isMaximizedChannel = 'window:isMaximized'
-  const onIsMaximized = (): boolean => {
-    return !mainWindow.isDestroyed() && mainWindow.isMaximized()
+  const onIsMaximized = (event?: Electron.IpcMainInvokeEvent): boolean => {
+    // ipcMain.handle allows one handler per channel, so answer for whichever window asks.
+    const window =
+      event && fromSecondaryWindow(event) ? BrowserWindow.fromWebContents(event.sender) : mainWindow
+    return !!window && !window.isDestroyed() && window.isMaximized()
   }
   ipcMain.on(minimizeChannel, onMinimize)
   ipcMain.on(maximizeChannel, onMaximize)

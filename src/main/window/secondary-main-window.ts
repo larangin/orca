@@ -1,6 +1,10 @@
-import { app, BrowserWindow, nativeTheme } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme, type IpcMainEvent } from 'electron'
 import { join } from 'node:path'
-import { liveMainWindows, registerMainWindow } from './main-window-registry'
+import {
+  isSecondaryMainWindowWebContents,
+  liveMainWindows,
+  registerMainWindow
+} from './main-window-registry'
 import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
 import {
   MIN_HEIGHT,
@@ -26,8 +30,47 @@ function cascadedBounds(): Electron.Rectangle {
   }
 }
 
+let titlebarControlsInstalled = false
+
+/** Linux/Windows custom titlebar buttons for secondary windows; the primary's handlers ignore them. */
+function installSecondaryTitlebarControls(): void {
+  if (titlebarControlsInstalled) {
+    return
+  }
+  titlebarControlsInstalled = true
+  const forSender =
+    (action: (window: BrowserWindow) => void) =>
+    (event: IpcMainEvent): void => {
+      if (!isSecondaryMainWindowWebContents(event.sender)) {
+        return
+      }
+      const window = BrowserWindow.fromWebContents(event.sender)
+      if (window && !window.isDestroyed()) {
+        action(window)
+      }
+    }
+  ipcMain.on(
+    'window:minimize',
+    forSender((window) => window.minimize())
+  )
+  ipcMain.on(
+    'window:maximize',
+    forSender((window) => (window.isMaximized() ? window.unmaximize() : window.maximize()))
+  )
+  // Why plain close: a secondary window owns no session, so it skips the primary's confirm flow.
+  ipcMain.on(
+    'window:request-close',
+    forSender((window) => window.close())
+  )
+  ipcMain.on(
+    'menu:popup',
+    forSender((window) => Menu.getApplicationMenu()?.popup({ window }))
+  )
+}
+
 /** File > New Window: one more main window on the same profile, starting with no workspace open. */
 export function createSecondaryMainWindow(): BrowserWindow {
+  installSecondaryTitlebarControls()
   const window = new BrowserWindow({
     ...cascadedBounds(),
     minWidth: MIN_WIDTH,
@@ -60,6 +103,9 @@ export function createSecondaryMainWindow(): BrowserWindow {
   })
   registerMainWindow(window)
   window.once('ready-to-show', () => window.show())
+  // Keeps the custom maximize button's icon in sync, as the primary's state lifecycle does.
+  window.on('maximize', () => window.webContents.send('window:maximize-changed', true))
+  window.on('unmaximize', () => window.webContents.send('window:maximize-changed', false))
   const query = { [SECONDARY_WINDOW_ROLE_QUERY]: 'secondary' }
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     const url = new URL(process.env.ELECTRON_RENDERER_URL)

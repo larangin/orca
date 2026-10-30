@@ -49,3 +49,8 @@ export function ptyOwnerWebContents(ptyId: string): WebContents | null {
 export function effectivePtyOwnerId(ptyId: string): number | null {
   return (ptyOwnerWebContents(ptyId) ?? liveMainWindows()[0]?.webContents ?? null)?.id ?? null
 }
+
+export function resetMainWindowRegistryForTest(): void {
+  windows.length = 0
+  ptyOwnerByPtyId.clear()
+}

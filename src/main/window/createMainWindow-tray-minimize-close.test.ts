@@ -19,6 +19,7 @@ vi.mock('../runtime/agent-session-runtime-end-record', () => ({
 }))
 
 import { createMainWindow } from './createMainWindow'
+import { registerMainWindow, resetMainWindowRegistryForTest } from './main-window-registry'
 import { ipcMain } from 'electron'
 import {
   resetExpectedTeardownStateForTest,
@@ -321,6 +322,22 @@ describe('createMainWindow', () => {
       expect(webContents.send).toHaveBeenCalledWith('window:close-requested', {
         isQuitting: false
       })
+    })
+
+    it('leaves the primary window alone when a secondary window requests close', () => {
+      setPlatform('linux')
+      resetMainWindowRegistryForTest()
+      const ipcHandlers = captureIpcHandlers()
+      const { webContents } = setupCloseWindow()
+      // The window registry reads isDestroyed, which the harness's webContents mock omits.
+      Object.assign(webContents, { isDestroyed: () => false })
+      createMainWindow(makeStore(false, true) as never, { getIsQuitting: () => false })
+      const secondaryContents = { isDestroyed: () => false }
+      registerMainWindow({ isDestroyed: () => false, webContents: secondaryContents } as never)
+
+      ipcHandlers['window:request-close']?.({ sender: secondaryContents })
+
+      expect(webContents.send).not.toHaveBeenCalledWith('window:close-requested', expect.anything())
     })
   })
 })
