@@ -1,6 +1,9 @@
 import { ipcMain } from 'electron'
-import { isSecondaryMainWindowWebContents } from '../window/main-window-registry'
-import { secondaryWindowStartSession } from '../window/secondary-main-window'
+import {
+  isSecondaryMainWindowWebContents,
+  mainWindowOpenPath
+} from '../window/main-window-registry'
+import { secondaryWindowStartSession, withActiveRepo } from '../window/secondary-main-window'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { parseTerminalSurfaceCloseTarget } from '../../shared/terminal-surface-close-target'
@@ -27,9 +30,15 @@ export function registerSessionHandlers(store: Store, runtime: OrcaRuntimeServic
   ipcMain.handle('session:get', (event, hostId?: string | null) => {
     const session = store.getWorkspaceSession(hostId)
     // Why: a window from File > New Window opens what you pick; the primary keeps its terminals.
-    return isSecondaryMainWindowWebContents(event.sender)
-      ? secondaryWindowStartSession(session)
-      : session
+    const openPath = mainWindowOpenPath(event.sender)
+    const openRepo = openPath
+      ? (store.getRepos().find((repo) => repo.path === openPath) ?? null)
+      : null
+    if (!isSecondaryMainWindowWebContents(event.sender)) {
+      // A launcher-started primary keeps its session and tabs, opened on the launcher's repo.
+      return openRepo ? withActiveRepo(session, openRepo) : session
+    }
+    return secondaryWindowStartSession(session, openRepo)
   })
 
   // Repo catalogs omit folder-only SSH hosts; enumerate session partitions directly (#12723).

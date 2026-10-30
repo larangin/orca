@@ -44,6 +44,8 @@ import { clearWindowsStdHandleInheritance } from './startup/windows-std-handle-i
 import { installWindowsIsolatedSpawner } from './startup/windows-isolated-spawner'
 import { dropE2eSpawnLogOutsideE2e } from './startup/e2e-spawn-log-env'
 import { createSecondaryMainWindow } from './window/secondary-main-window'
+import { liveMainWindows } from './window/main-window-registry'
+import { launchWindowArgs } from './window/launch-window-args'
 
 const NEW_WINDOW_ARG = '--new-window'
 
@@ -83,7 +85,8 @@ function requestDesktopActivation(argv: readonly string[] = []): void {
   }
   // Why: the Linux dock's "New Window" action relaunches with --new-window; a plain relaunch still focuses.
   if (argv.includes(NEW_WINDOW_ARG) && canOpenSecondaryWindow()) {
-    createSecondaryMainWindow()
+    // --open-path=<repo root> starts the window on that registered repo; --window-title names it (Orca project launchers).
+    createSecondaryMainWindow(launchWindowArgs(argv))
     return
   }
   state.desktopActivationGate?.requestActivation()
@@ -93,8 +96,8 @@ function canOpenSecondaryWindow(): boolean {
   return (
     app.isReady() &&
     !state.isServeMode &&
-    !!state.mainWindow &&
-    !state.mainWindow.isDestroyed() &&
+    // Why any window: closing the main window must not make project launchers reopen it instead.
+    liveMainWindows().length > 0 &&
     state.store?.getSettings().experimentalMultiWindow === true
   )
 }

@@ -7,7 +7,18 @@ import { formatBrowserClientHostIdArgument } from '../../shared/browser-client-h
 import { markSystemSessionEnding } from '../crash-reporting/expected-teardown-state'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 import { clearTrustedUIRendererWebContentsId, setTrustedUIRendererWebContentsId } from '../ipc/ui'
-import { registerMainWindow } from './main-window-registry'
+import { registerMainWindow, setMainWindowOpenPath } from './main-window-registry'
+import { launchWindowArgs } from './launch-window-args'
+
+let launchArgsConsumed = false
+// Only the first primary window takes the launch identity; a reopened primary is a plain main window.
+function consumeLaunchWindowArgs(): { openPath?: string; title?: string } {
+  if (launchArgsConsumed) {
+    return {}
+  }
+  launchArgsConsumed = true
+  return launchWindowArgs(process.argv)
+}
 import { flushUnsavedCloudSessions } from '../orca-profiles/profile-cloud-session-owner'
 import type { Store } from '../persistence'
 import { closeDashboardPopout } from './dashboard-popout-window'
@@ -228,7 +239,16 @@ export function createMainWindow(
     clearTrustedUIRendererWebContentsId(rendererWebContentsId)
     state.dispose()
   })
-  registerMainWindow(mainWindow)
+  registerMainWindow(mainWindow, 'primary')
+  // A project launcher that cold-starts Orca makes the primary window its project window.
+  const launch = consumeLaunchWindowArgs()
+  if (launch.openPath) {
+    setMainWindowOpenPath(mainWindow, launch.openPath)
+  }
+  if (launch.title) {
+    mainWindow.setTitle(launch.title)
+    mainWindow.on('page-title-updated', (event) => event.preventDefault())
+  }
 
   if (!opts?.deferLoad) {
     loadMainWindow(mainWindow)

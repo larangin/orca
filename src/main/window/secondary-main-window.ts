@@ -3,9 +3,13 @@ import { join } from 'node:path'
 import {
   isSecondaryMainWindowWebContents,
   liveMainWindows,
-  registerMainWindow
+  registerMainWindow,
+  mainWindowForOpenPath,
+  setMainWindowOpenPath
 } from './main-window-registry'
 import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
+import type { Repo } from '../../shared/repo-types'
+import { worktreeWorkspaceKey } from '../../shared/workspace-scope'
 import {
   MIN_HEIGHT,
   MIN_WIDTH,
@@ -68,14 +72,25 @@ function installSecondaryTitlebarControls(): void {
   )
 }
 
-/** File > New Window: one more main window on the same profile, starting with no workspace open. */
-export function createSecondaryMainWindow(): BrowserWindow {
+/** File > New Window: one more main window on the same profile, starting with no workspace open, or on openPath's repo. */
+export function createSecondaryMainWindow(
+  options: { openPath?: string; title?: string } = {}
+): BrowserWindow {
   installSecondaryTitlebarControls()
+  // Why: a launcher clicked again focuses its project's window instead of stacking duplicates.
+  const existing = options.openPath ? mainWindowForOpenPath(options.openPath) : null
+  if (existing) {
+    if (existing.isMinimized()) {
+      existing.restore()
+    }
+    existing.focus()
+    return existing
+  }
   const window = new BrowserWindow({
     ...cascadedBounds(),
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
-    title: 'Orca',
+    title: options.title ?? 'Orca',
     show: false,
     acceptFirstMouse: true,
     autoHideMenuBar: true,
@@ -102,6 +117,13 @@ export function createSecondaryMainWindow(): BrowserWindow {
     }
   })
   registerMainWindow(window)
+  if (options.openPath) {
+    setMainWindowOpenPath(window, options.openPath)
+  }
+  if (options.title) {
+    // Why: the launcher's name tells project windows apart in the taskbar; keep the page from renaming it.
+    window.on('page-title-updated', (event) => event.preventDefault())
+  }
   window.once('ready-to-show', () => window.show())
   // Keeps the custom maximize button's icon in sync, as the primary's state lifecycle does.
   window.on('maximize', () => window.webContents.send('window:maximize-changed', true))
@@ -117,13 +139,33 @@ export function createSecondaryMainWindow(): BrowserWindow {
   return window
 }
 
-/** What a secondary window starts from: every workspace's tabs, none open and nothing to reconnect. */
-export function secondaryWindowStartSession(session: WorkspaceSessionState): WorkspaceSessionState {
+/** The session opened on repo's primary worktree (`<repoId>::<repoPath>`), everything else kept. */
+export function withActiveRepo(
+  session: WorkspaceSessionState,
+  repo: Pick<Repo, 'id' | 'path'>
+): WorkspaceSessionState {
+  const worktreeId = `${repo.id}::${repo.path}`
   return {
     ...session,
-    activeRepoId: null,
-    activeWorkspaceKey: null,
-    activeWorktreeId: null,
+    activeRepoId: repo.id,
+    activeWorkspaceKey: worktreeWorkspaceKey(worktreeId),
+    activeWorktreeId: worktreeId,
+    activeTabId: session.activeTabIdByWorktree?.[worktreeId] ?? null
+  }
+}
+
+/** What a secondary window starts from: every workspace's tabs, none open (or openRepo's) and nothing to reconnect. */
+export function secondaryWindowStartSession(
+  session: WorkspaceSessionState,
+  openRepo: Pick<Repo, 'id' | 'path'> | null = null
+): WorkspaceSessionState {
+  // A repo's primary worktree id is `<repoId>::<repoPath>`.
+  const worktreeId = openRepo ? `${openRepo.id}::${openRepo.path}` : null
+  return {
+    ...session,
+    activeRepoId: openRepo?.id ?? null,
+    activeWorkspaceKey: worktreeId ? worktreeWorkspaceKey(worktreeId) : null,
+    activeWorktreeId: worktreeId,
     activeTabId: null,
     activeWorktreeIdsOnShutdown: [],
     activeConnectionIdsAtShutdown: []
