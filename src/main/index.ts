@@ -43,6 +43,9 @@ import { registerOrcaProtocolClient } from './startup/orca-protocol-registration
 import { clearWindowsStdHandleInheritance } from './startup/windows-std-handle-inheritance'
 import { installWindowsIsolatedSpawner } from './startup/windows-isolated-spawner'
 import { dropE2eSpawnLogOutsideE2e } from './startup/e2e-spawn-log-env'
+import { createSecondaryMainWindow } from './window/secondary-main-window'
+
+const NEW_WINDOW_ARG = '--new-window'
 
 // Before anything spawns, so no daemon, PTY or agent inherits it outside e2e.
 dropE2eSpawnLogOutsideE2e()
@@ -78,7 +81,22 @@ function requestDesktopActivation(argv: readonly string[] = []): void {
     requestDesktopHandoff()
     return
   }
+  // Why: the Linux dock's "New Window" action relaunches with --new-window; a plain relaunch still focuses.
+  if (argv.includes(NEW_WINDOW_ARG) && canOpenSecondaryWindow()) {
+    createSecondaryMainWindow()
+    return
+  }
   state.desktopActivationGate?.requestActivation()
+}
+
+function canOpenSecondaryWindow(): boolean {
+  return (
+    app.isReady() &&
+    !state.isServeMode &&
+    !!state.mainWindow &&
+    !state.mainWindow.isDestroyed() &&
+    state.store?.getSettings().experimentalMultiWindow === true
+  )
 }
 
 /** Buffer documents until listener readiness; webContents.send silently drops unhandled messages. */

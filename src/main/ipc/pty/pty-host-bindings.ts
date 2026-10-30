@@ -1,5 +1,5 @@
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron'
-import { withPtyOwnerTracking } from './pty/delivery/pty-owner-routing'
+import { withPtyOwnerTracking } from './delivery/pty-owner-routing'
 
 /** Inject desktop surfaces so the same PTY controller can also serve Node-only hosts. */
 

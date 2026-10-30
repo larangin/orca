@@ -655,7 +655,15 @@ module.exports = {
       entry: {
         // Why: Electron reports WM_CLASS=orca for the visible Linux window;
         // GNOME docks need an exact match to group it with orca-ide.desktop.
-        StartupWMClass: 'orca'
+        StartupWMClass: 'orca',
+        // GNOME's dock "New Window" runs this action; main opens a second window for --new-window.
+        Actions: 'new-window;'
+      },
+      desktopActions: {
+        'new-window': {
+          Name: 'New Window',
+          Exec: '/opt/Orca/orca-ide --new-window'
+        }
       }
     },
     extraResources: [
